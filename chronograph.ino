@@ -20,7 +20,11 @@ const int digits[]   = { digit1, digit2, digit3, digit4 };
 
 volatile unsigned long int time1 = 0;
 volatile unsigned long int time2 = 0;
-volatile double data = 0;
+
+volatile double averageData = 0;
+volatile double lastData = 0;
+
+const int button = 4;
 
 void outreset() {
   for(int i = 0; i < segmentsCount; ++i) {
@@ -152,7 +156,9 @@ void setup() {
   // pin 2
   attachInterrupt(0, sensor1, FALLING);
   // pin 3
-  attachInterrupt(1, sensor2, CHANGE);
+  attachInterrupt(1, sensor2, FALLING);
+
+  pinMode(button, INPUT);
 
   outreset();
 }
@@ -185,13 +191,21 @@ void sensorLoop() {
     outdigit(1, 0, 1);
   }
 
-  delay(1000);
+  if(time2 > 0) {
+    outdigit(1, 0, 2);
+  }
+
+  if(digitalRead(button)) {
+    outdigit(1, 0, 3);
+  }
+
+  delay(200);
 }
 
 void realLoop() {
   outreset();
-  data = 567.3;
-  outvalue(data);
+  lastData = 567.3;
+  outvalue(lastData);
 
   delay(3);
 }
