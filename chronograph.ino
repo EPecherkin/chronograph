@@ -1,12 +1,13 @@
 const int segmentA = 12;
 const int segmentB = 10;
-const int segmentC = 13; // a0
+const int segmentC = 13;
 const int segmentD = 16; // a2
 const int segmentE = 17; // a3
 const int segmentF = 11;
-const int segmentG = 14;
+const int segmentG = 14; // a0
 const int segmentH = 15; // a1
 
+// not a rank (не разряд)
 const int digit1   = 7;
 const int digit2   = 8;
 const int digit3   = 9;
@@ -17,23 +18,27 @@ const int digitsCount = 4;
 const int segments[] = { segmentA, segmentB, segmentC, segmentD, segmentE, segmentF, segmentG, segmentH };
 const int digits[]   = { digit1, digit2, digit3, digit4 };
 
+volatile unsigned long int time1 = 0;
+volatile unsigned long int time2 = 0;
+volatile double data = 0;
+
 void outreset() {
   for(int i = 0; i < segmentsCount; ++i) {
-    digitalWrite(segments[i], HIGH);  
+    digitalWrite(segments[i], HIGH);
   }
-  
+
   for(int i = 0; i < digitsCount; ++i) {
-    digitalWrite(digits[i], LOW);  
+    digitalWrite(digits[i], LOW);
   }
 }
 
-void outdigit(int number, int point, int digit) {
+void outdigit(int value, int point, int digit) {
   digitalWrite(digits[digit-1], HIGH);
 
   if(point)
     digitalWrite(segmentH, LOW);
 
-  switch(number) {
+  switch(value) {
     case 0:
       digitalWrite(segmentA, LOW);
       digitalWrite(segmentB, LOW);
@@ -111,7 +116,7 @@ void outvalue(double value) {
   int point = 0;
   if(counter == 3)
     point = 1;
-    
+
   int val = (int)(value*10);
   int figure = 0;
   for(int i = 1; i <= (5 - counter); ++i) {
@@ -123,30 +128,76 @@ void outvalue(double value) {
   counter = 1 + counter % 4;
 }
 
-void setup() {                
+void sensor1() {
+  if(time1 == 0) {
+    time1 = micros();
+  }
+}
+
+void sensor2() {
+  if(time2 == 0) {
+    time2 = micros();
+  }
+}
+
+void setup() {
   for(int i = 0; i < segmentsCount; ++i) {
-    pinMode(segments[i], OUTPUT);  
+    pinMode(segments[i], OUTPUT);
   }
 
   for(int i = 0; i < digitsCount; ++i) {
-    pinMode(digits[i], OUTPUT);  
+    pinMode(digits[i], OUTPUT);
   }
+
+  // pin 2
+  attachInterrupt(0, sensor1, FALLING);
+  // pin 3
+  attachInterrupt(1, sensor2, CHANGE);
 
   outreset();
 }
 
-void loop() {
+void testLoop() {
   outreset();
-  outvalue(567.3);
-  
-  //for(int i = 0; i < segmentsCount; ++i) {
-  //  digitalWrite(segments[i], LOW);  
-  //}
-  
-  //for(int i = 0; i < digitsCount; ++i) {
-  //  digitalWrite(digits[i], HIGH); 
-  //}
-  
-//  delay(3);
+
+  /*for(int i = 0; i < segmentsCount; ++i) {*/
+    /*digitalWrite(segments[i], LOW);*/
+  /*}*/
+
+  for(int i = 0; i < digitsCount; ++i) {
+    digitalWrite(digits[i], HIGH);
+  }
+
+  /*outdigit(8, 1, 4);*/
+
+  /*delay(1000);*/
+
+  for(int i = 0; i < segmentsCount; ++i) {
+    digitalWrite(segments[i], LOW);
+    delay(500);
+    digitalWrite(segments[i], HIGH);
+  }
+}
+
+void sensorLoop() {
+  outreset();
+  if(time1 > 0) {
+    outdigit(1, 0, 1);
+  }
+
   delay(1000);
+}
+
+void realLoop() {
+  outreset();
+  data = 567.3;
+  outvalue(data);
+
+  delay(3);
+}
+
+void loop() {
+  /*testLoop();*/
+  /*realLoop();*/
+  sensorLoop();
 }
