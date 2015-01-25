@@ -26,6 +26,90 @@ volatile double lastData = 0;
 
 const int button = 4;
 
+void sensor1() {
+  if(time1 == 0) {
+    time1 = micros();
+  }
+}
+
+void sensor2() {
+  if(time2 == 0) {
+    time2 = micros();
+  }
+}
+
+void setup() {
+  for(int i = 0; i < segmentsCount; ++i) {
+    pinMode(segments[i], OUTPUT);
+  }
+
+  for(int i = 0; i < digitsCount; ++i) {
+    pinMode(digits[i], OUTPUT);
+  }
+
+  // pin 2
+  attachInterrupt(0, sensor1, FALLING);
+  // pin 3
+  attachInterrupt(1, sensor2, FALLING);
+
+  pinMode(button, INPUT);
+
+  outreset();
+}
+
+void loop() {
+  /*testLoop();*/
+  realLoop();
+  /*sensorLoop();*/
+}
+
+void realLoop() {
+  outreset();
+  lastData = 567.3;
+  outvalue(lastData);
+
+  delay(3);
+}
+
+void sensorLoop() {
+  outreset();
+  if(time1 > 0) {
+    outdigit(1, 0, 1);
+  }
+
+  if(time2 > 0) {
+    outdigit(1, 0, 2);
+  }
+
+  if(digitalRead(button)) {
+    outdigit(1, 0, 3);
+  }
+
+  delay(200);
+}
+
+void testLoop() {
+  outreset();
+
+  /*for(int i = 0; i < segmentsCount; ++i) {*/
+    /*digitalWrite(segments[i], LOW);*/
+  /*}*/
+
+  for(int i = 0; i < digitsCount; ++i) {
+    digitalWrite(digits[i], HIGH);
+  }
+
+  /*outdigit(8, 1, 4);*/
+
+  /*delay(1000);*/
+
+  for(int i = 0; i < segmentsCount; ++i) {
+    digitalWrite(segments[i], LOW);
+    delay(500);
+    digitalWrite(segments[i], HIGH);
+  }
+}
+
 void outreset() {
   for(int i = 0; i < segmentsCount; ++i) {
     digitalWrite(segments[i], HIGH);
@@ -130,88 +214,4 @@ void outvalue(double value) {
 
   outdigit(figure, point, counter);
   counter = 1 + counter % 4;
-}
-
-void sensor1() {
-  if(time1 == 0) {
-    time1 = micros();
-  }
-}
-
-void sensor2() {
-  if(time2 == 0) {
-    time2 = micros();
-  }
-}
-
-void setup() {
-  for(int i = 0; i < segmentsCount; ++i) {
-    pinMode(segments[i], OUTPUT);
-  }
-
-  for(int i = 0; i < digitsCount; ++i) {
-    pinMode(digits[i], OUTPUT);
-  }
-
-  // pin 2
-  attachInterrupt(0, sensor1, FALLING);
-  // pin 3
-  attachInterrupt(1, sensor2, FALLING);
-
-  pinMode(button, INPUT);
-
-  outreset();
-}
-
-void testLoop() {
-  outreset();
-
-  /*for(int i = 0; i < segmentsCount; ++i) {*/
-    /*digitalWrite(segments[i], LOW);*/
-  /*}*/
-
-  for(int i = 0; i < digitsCount; ++i) {
-    digitalWrite(digits[i], HIGH);
-  }
-
-  /*outdigit(8, 1, 4);*/
-
-  /*delay(1000);*/
-
-  for(int i = 0; i < segmentsCount; ++i) {
-    digitalWrite(segments[i], LOW);
-    delay(500);
-    digitalWrite(segments[i], HIGH);
-  }
-}
-
-void sensorLoop() {
-  outreset();
-  if(time1 > 0) {
-    outdigit(1, 0, 1);
-  }
-
-  if(time2 > 0) {
-    outdigit(1, 0, 2);
-  }
-
-  if(digitalRead(button)) {
-    outdigit(1, 0, 3);
-  }
-
-  delay(200);
-}
-
-void realLoop() {
-  outreset();
-  lastData = 567.3;
-  outvalue(lastData);
-
-  delay(3);
-}
-
-void loop() {
-  /*testLoop();*/
-  /*realLoop();*/
-  sensorLoop();
 }
