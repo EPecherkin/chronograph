@@ -1,24 +1,24 @@
 #define uchar unsigned char
 #define uint  unsigned int
 
-const uchar segmentA = 12;
-const uchar segmentB = 10;
-const uchar segmentC = 13;
-const uchar segmentD = 16; // a2
-const uchar segmentE = 17; // a3
-const uchar segmentF = 11;
-const uchar segmentG = 14; // a0
-const uchar segmentH = 15; // a1
+const uchar segmentA = 17; // a3
+const uchar segmentB = 16; // a2
+const uchar segmentC = 15; // a1
+const uchar segmentD = 14; // a0
+const uchar segmentE = 13;
+const uchar segmentF = 12;
+const uchar segmentG = 10;
+const uchar segmentDP = 21; // a7
 
-// not a rank (не разряд)
-const uchar digit1   = 7;
-const uchar digit2   = 8;
-const uchar digit3   = 9;
-const uchar digit4   = 6;
+// it is a number count, not a rank
+const uchar digit1   = 20;
+const uchar digit2   = 19;
+const uchar digit3   = 18;
+const uchar digit4   = 9;
 
 const uchar segmentsCount = 8;
 const uchar digitsCount = 4;
-const uchar segments[] = { segmentA, segmentB, segmentC, segmentD, segmentE, segmentF, segmentG, segmentH };
+const uchar segments[] = { segmentA, segmentB, segmentC, segmentD, segmentE, segmentF, segmentG, segmentDP };
 const uchar digits[]   = { digit1, digit2, digit3, digit4 };
 
 const uchar button = 4;
@@ -26,7 +26,7 @@ const uchar button = 4;
 volatile uchar s1 = 0;
 volatile uchar s2 = 0;
 
-volatile double length = 0.151;
+volatile double length = 0.084;
 volatile double averageData = 0;
 volatile double lastData = 0;
 
@@ -51,6 +51,7 @@ void Timer1Init() {
 
 
 void sensor1() {
+  Serial.println("sensor1");
   if(s1 == 0) {
     TCCR1B = (1<<CS10); // Timer/Counter 1 running (no prescaling)
     s1 = 1;
@@ -58,6 +59,7 @@ void sensor1() {
 }
 
 void sensor2() {
+  Serial.println("sensor2");
   if(s2 == 0) {
     TCCR1B = 0; // Timer/Counter 1 stopped (no clock source)
     s2 = 1;
@@ -65,6 +67,9 @@ void sensor2() {
 }
 
 void setup() {
+  Serial.begin(9600);
+  Serial.println("setup");
+
   // Global disable interrupts
   cli();
 
@@ -90,11 +95,13 @@ void setup() {
   pinMode(button, INPUT);
 
   outreset();
+  
+  Serial.println("setup complete");
 }
 
 void loop() {
-  /*testLoop();*/
-  realLoop();
+  testLoop();
+  //realLoop();
   /*sensorLoop();*/
 }
 
@@ -102,18 +109,25 @@ void realLoop() {
   outreset();
 
   if(s1 && s2) {
-    double time = TCNT1 * (1.0 / 16000000.0);
     averageData = ((averageData * 2) + lastData) / 3;
-    lastData = length / time;
-    s1 = s2 = 0;
+    /*double time = TCNT1 * (1.0 / 16000000.0;*/
+    /*lastData = length / time;*/
+    lastData = length * 16000000.0/ TCNT1;
+
+    s1 = 0;
+    s2 = 0;
+
+    TCCR1B = 0;
+    TCNT1 = 0;
   }
 
-  lastData = 567.3;
-  averageData = 213.4;
-
   if(digitalRead(button)) {
+    //Serial.print("avg: ");
+    //Serial.println(averageData);
     outvalue(averageData);
   } else {
+    //Serial.print("lst: ");
+    //Serial.println(lastData);
     outvalue(lastData);
   }
 
@@ -173,7 +187,7 @@ void outdigit(uchar value, uchar point, uchar digit) {
   digitalWrite(digits[digit-1], HIGH);
 
   if(point)
-    digitalWrite(segmentH, LOW);
+    digitalWrite(segmentDP, LOW);
 
   switch(value) {
     case 0:
