@@ -1,20 +1,37 @@
 #define uchar unsigned char
 #define uint  unsigned int
 
-const uchar segmentA = 17; // a3
-const uchar segmentB = 16; // a2
-const uchar segmentC = 15; // a1
-const uchar segmentD = 14; // a0
-const uchar segmentE = 13;
-const uchar segmentF = 12;
-const uchar segmentG = 10;
-const uchar segmentDP = 21; // a7
+//breadboard
+const uchar segmentA = 12;
+const uchar segmentB = 10;
+const uchar segmentC = 13;
+const uchar segmentD = 16; // a2
+const uchar segmentE = 17; // a3
+const uchar segmentF = 11;
+const uchar segmentG = 14; // a0
+const uchar segmentDP = 15; // a1
 
-// it is a number count, not a rank
-const uchar digit1   = 20;
-const uchar digit2   = 19;
-const uchar digit3   = 18;
-const uchar digit4   = 9;
+// not a rank (не разряд)
+const uchar digit1   = 7;
+const uchar digit2   = 8;
+const uchar digit3   = 9;
+const uchar digit4   = 6;
+
+//pcb
+//const uchar segmentA = 17; // a3
+//const uchar segmentB = 16; // a2
+//const uchar segmentC = 15; // a1
+//const uchar segmentD = 14; // a0
+//const uchar segmentE = 13;
+//const uchar segmentF = 12;
+//const uchar segmentG = 10;
+//const uchar segmentDP = 21; // a7
+
+//// it is a number count, not a rank
+//const uchar digit1   = 20;
+//const uchar digit2   = 19;
+//const uchar digit3   = 18;
+//const uchar digit4   = 9;
 
 const uchar segmentsCount = 8;
 const uchar digitsCount = 4;
@@ -23,12 +40,13 @@ const uchar digits[]   = { digit1, digit2, digit3, digit4 };
 
 const uchar button = 4;
 
-volatile uchar s1 = 0;
-volatile uchar s2 = 0;
+volatile uchar sensorIn = 0;
+volatile uchar sensorOut = 0;
 
-volatile double length = 0.084;
-volatile double averageData = 0;
-volatile double lastData = 0;
+double length = 0.084;
+uint averageCount = 0;
+double averageData = 0;
+double lastData = 0;
 
 void Timer1Init() {
   TCNT1 = 0;
@@ -50,19 +68,19 @@ void Timer1Init() {
 }
 
 
-void sensor1() {
-  Serial.println("sensor1");
-  if(s1 == 0) {
+void sensorInInterrupt() {
+  if(sensorIn == 0) {
+    Serial.println("sensorIn");
     TCCR1B = (1<<CS10); // Timer/Counter 1 running (no prescaling)
-    s1 = 1;
+    sensorIn = 1;
   }
 }
 
-void sensor2() {
-  Serial.println("sensor2");
-  if(s2 == 0) {
+void sensorOutInterrupt() {
+  if(sensorOut == 0) {
+    Serial.println("sensorOut");
     TCCR1B = 0; // Timer/Counter 1 stopped (no clock source)
-    s2 = 1;
+    sensorOut = 1;
   }
 }
 
@@ -88,9 +106,9 @@ void setup() {
   }
 
   // pin 2
-  attachInterrupt(0, sensor1, FALLING);
+  attachInterrupt(0, sensorInInterrupt, FALLING);
   // pin 3
-  attachInterrupt(1, sensor2, FALLING);
+  attachInterrupt(1, sensorOutInterrupt, FALLING);
 
   pinMode(button, INPUT);
 
@@ -105,29 +123,40 @@ void loop() {
   /*sensorLoop();*/
 }
 
+double outData = 0;
+uchar outDataType = 0;
 void realLoop() {
   outreset();
 
-  if(s1 && s2) {
-    averageData = ((averageData * 2) + lastData) / 3;
+  if(sensorIn && sensorOut) {
+    averageData = ((averageData * averageCount) + lastData) / (averageCount + 1);
+    ++averageCount;
     /*double time = TCNT1 * (1.0 / 16000000.0;*/
     /*lastData = length / time;*/
     lastData = length * 16000000.0/ TCNT1;
 
-    s1 = 0;
-    s2 = 0;
+    sensorIn = 0;
+    sensorOut = 0;
 
     TCCR1B = 0;
     TCNT1 = 0;
   }
 
   if(digitalRead(button)) {
-    //Serial.print("avg: ");
-    //Serial.println(averageData);
+    if(outData != averageData || outDataType != 0) {
+      Serial.print("avg: ");
+      Serial.println(averageData);
+      outData = averageData;
+      outDataType = 0;
+    }
     outvalue(averageData);
   } else {
-    //Serial.print("lst: ");
-    //Serial.println(lastData);
+    if(outData != lastData || outDataType != 1) {
+      Serial.print("lst: ");
+      Serial.println(lastData);
+      outData = lastData;
+      outDataType = 1;
+    }
     outvalue(lastData);
   }
 
@@ -136,11 +165,11 @@ void realLoop() {
 
 void sensorLoop() {
   outreset();
-  if(s1) {
+  if(sensorIn) {
     outdigit(1, 0, 1);
   }
 
-  if(s2) {
+  if(sensorOut) {
     outdigit(1, 0, 2);
   }
 
@@ -183,10 +212,10 @@ void outreset() {
   }
 }
 
-void outdigit(uchar value, uchar point, uchar digit) {
+void outdigit(uchar value, uchar dot, uchar digit) {
   digitalWrite(digits[digit-1], HIGH);
 
-  if(point)
+  if(dot)
     digitalWrite(segmentDP, LOW);
 
   switch(value) {
@@ -264,7 +293,7 @@ void outdigit(uchar value, uchar point, uchar digit) {
 
 uchar counter = 1;
 void outvalue(double value) {
-  uchar point = (counter == 3) ? 1 : 0;
+  uchar dot = (counter == 3) ? 1 : 0;
 
   uint val = (uint)(value*10);
   uchar figure = 0;
@@ -273,6 +302,6 @@ void outvalue(double value) {
     val = val / 10;
   }
 
-  outdigit(figure, point, counter);
+  outdigit(figure, dot, counter);
   counter = 1 + counter % 4;
 }
