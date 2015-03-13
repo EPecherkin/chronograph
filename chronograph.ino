@@ -118,22 +118,38 @@ void setup() {
 }
 
 void loop() {
-  testLoop();
-  //realLoop();
-  /*sensorLoop();*/
+  //testLoop();
+  realLoop();
+  //sensorLoop();
 }
 
 double outData = 0;
 uchar outDataType = 0;
+uchar sensorDurty = 0;
+uchar sensorDurtyCounter = 0;
+const uchar sensorDurtyBreakCount = 4;
 void realLoop() {
   outreset();
+  
+  if(sensorDurty) {
+    Serial.println("Sensors is durty. Clean sensors");
+    sensorDurty = 0;
+    sensorDurtyCounter = 0;
+    sensorIn = 0;
+    sensorOut = 0;
+    TCCR1B = 0;
+    TCNT1 = 0;
+  }
+  
+  if(sensorIn ^ sensorOut) {
+    ++sensorDurtyCounter;
+    sensorDurty = sensorDurtyCounter / sensorDurtyBreakCount;
+  }
 
   if(sensorIn && sensorOut) {
+    lastData = length * 16000000.0/ TCNT1;
     averageData = ((averageData * averageCount) + lastData) / (averageCount + 1);
     ++averageCount;
-    /*double time = TCNT1 * (1.0 / 16000000.0;*/
-    /*lastData = length / time;*/
-    lastData = length * 16000000.0/ TCNT1;
 
     sensorIn = 0;
     sensorOut = 0;
