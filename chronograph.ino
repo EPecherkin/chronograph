@@ -48,7 +48,7 @@ uint averageCount = 0;
 double averageData = 0;
 double lastData = 0;
 
-void Timer1Init() {
+void Counter1Init() {
   TCNT1 = 0;
 
   // Bits: COM1A1 COM1A0 COM1B1 COM1B0 - - WGM11 WGM10
@@ -67,11 +67,23 @@ void Timer1Init() {
   TIFR1 = 0;
 }
 
+void startCounter1() {
+  TCCR1B = (1<<CS10); // Counter 1 running (no prescaling)
+}
+
+void stopCounter1() {
+  TCCR1B = 0; // Counter 1 stopped (no clock source)
+}
+
+void cleanCounter1() {
+  stopCounter1();
+  TCNT1 = 0;
+}
 
 void sensorInInterrupt() {
   if(sensorIn == 0) {
     Serial.println("sensorIn");
-    TCCR1B = (1<<CS10); // Timer/Counter 1 running (no prescaling)
+    startCounter1();
     sensorIn = 1;
   }
 }
@@ -79,7 +91,7 @@ void sensorInInterrupt() {
 void sensorOutInterrupt() {
   if(sensorOut == 0) {
     Serial.println("sensorOut");
-    TCCR1B = 0; // Timer/Counter 1 stopped (no clock source)
+    stopCounter1();
     sensorOut = 1;
   }
 }
@@ -92,7 +104,7 @@ void setup() {
   cli();
 
   // Timer/Counter 1 initialization
-  Timer1Init();
+  Counter1Init();
 
   // Global enable interrupts
   sei();
@@ -127,7 +139,7 @@ double outData = 0;
 uchar outDataType = 0;
 uchar sensorDurty = 0;
 uchar sensorDurtyCounter = 0;
-const uchar sensorDurtyBreakCount = 4;
+const uchar sensorDurtyBreakCount = 2;
 void realLoop() {
   outreset();
   
@@ -135,12 +147,13 @@ void realLoop() {
     Serial.println("Sensors is durty. Clean sensors");
     sensorDurty = 0;
     sensorDurtyCounter = 0;
+
     sensorIn = 0;
     sensorOut = 0;
-    TCCR1B = 0;
-    TCNT1 = 0;
+
+    cleanCounter1();
   }
-  
+
   if(sensorIn ^ sensorOut) {
     ++sensorDurtyCounter;
     sensorDurty = sensorDurtyCounter / sensorDurtyBreakCount;
@@ -154,8 +167,7 @@ void realLoop() {
     sensorIn = 0;
     sensorOut = 0;
 
-    TCCR1B = 0;
-    TCNT1 = 0;
+    cleanCounter1();
   }
 
   if(digitalRead(button)) {
