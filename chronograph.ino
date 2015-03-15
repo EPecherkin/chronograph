@@ -1,37 +1,20 @@
 #define uchar unsigned char
 #define uint  unsigned int
 
-//breadboard
-const uchar segmentA = 12;
-const uchar segmentB = 10;
-const uchar segmentC = 13;
-const uchar segmentD = 16; // a2
-const uchar segmentE = 17; // a3
-const uchar segmentF = 11;
-const uchar segmentG = 14; // a0
-const uchar segmentDP = 15; // a1
+const uchar segmentA = A3; //17;
+const uchar segmentB = A2; //16;
+const uchar segmentC = A1; //15;
+const uchar segmentD = A0; //14;
+const uchar segmentE = 13;
+const uchar segmentF = 12;
+const uchar segmentG = 10;
+const uchar segmentDP = 7;
 
-// not a rank (не разряд)
-const uchar digit1   = 7;
-const uchar digit2   = 8;
-const uchar digit3   = 9;
-const uchar digit4   = 6;
-
-//pcb
-//const uchar segmentA = 17; // a3
-//const uchar segmentB = 16; // a2
-//const uchar segmentC = 15; // a1
-//const uchar segmentD = 14; // a0
-//const uchar segmentE = 13;
-//const uchar segmentF = 12;
-//const uchar segmentG = 10;
-//const uchar segmentDP = 21; // a7
-
-//// it is a number count, not a rank
-//const uchar digit1   = 20;
-//const uchar digit2   = 19;
-//const uchar digit3   = 18;
-//const uchar digit4   = 9;
+// it is a number count, not a rank
+const uchar digit1   = 8;
+const uchar digit2   = A5; //19;
+const uchar digit3   = A4; //18;
+const uchar digit4   = 9;
 
 const uchar segmentsCount = 8;
 const uchar digitsCount = 4;
@@ -75,14 +58,14 @@ void stopCounter1() {
   TCCR1B = 0; // Counter 1 stopped (no clock source)
 }
 
-void cleanCounter1() {
+void clearCounter1() {
   stopCounter1();
   TCNT1 = 0;
 }
 
 void sensorInInterrupt() {
   if(sensorIn == 0) {
-    Serial.println("sensorIn");
+    //Serial.println("sensorIn");
     startCounter1();
     sensorIn = 1;
   }
@@ -90,15 +73,21 @@ void sensorInInterrupt() {
 
 void sensorOutInterrupt() {
   if(sensorOut == 0) {
-    Serial.println("sensorOut");
+    //Serial.println("sensorOut");
     stopCounter1();
     sensorOut = 1;
   }
 }
 
+void clearSensors() {
+  sensorIn = 0;
+  sensorOut = 0;
+
+  clearCounter1();
+}
+
 void setup() {
   Serial.begin(9600);
-  Serial.println("setup");
 
   // Global disable interrupts
   cli();
@@ -124,39 +113,46 @@ void setup() {
 
   pinMode(button, INPUT);
 
-  outreset();
-  
-  Serial.println("setup complete");
+  showReset();
+
+  Serial.println("Ready!");
 }
 
 void loop() {
-  //testLoop();
   realLoop();
-  //sensorLoop();
+  //testShowLoop();
+  //testSensorsLoop();
 }
 
-double outData = 0;
-uchar outDataType = 0;
-uchar sensorDurty = 0;
-uchar sensorDurtyCounter = 0;
-const uchar sensorDurtyBreakCount = 2;
+// count = loop counts = count * loopDelay (ms)
+const uchar loopDelay = 3;
+uint loopsAfterMeasuringCounter = 0;
+const uint errorCanBeAfterCount = 300;
+uchar sensorError = 0;
+uchar sensorErrorConfirmCounter = 0;
+const uchar sensorErrorConfirmCount = 2;
+uint showErrorCounter = 0;
+const uint showErrorCount = 600;
+
 void realLoop() {
-  outreset();
-  
-  if(sensorDurty) {
-    Serial.println("Sensors is durty. Clean sensors");
-    sensorDurty = 0;
-    sensorDurtyCounter = 0;
+  showReset();
 
-    sensorIn = 0;
-    sensorOut = 0;
-
-    cleanCounter1();
+  if(sensorError) {
+    clearSensors();
+    if(showErrorCounter >= showErrorCount) {
+      showErrorCounter = 0;
+      sensorError = 0;
+    }
   }
 
   if(sensorIn ^ sensorOut) {
-    ++sensorDurtyCounter;
-    sensorDurty = sensorDurtyCounter / sensorDurtyBreakCount;
+    ++sensorErrorConfirmCounter;
+    uchar error = sensorErrorConfirmCounter / sensorErrorConfirmCount;
+    if((loopsAfterMeasuringCounter >= errorCanBeAfterCount) && error) {
+      Serial.println("Error");
+      sensorError = 1;
+      sensorErrorConfirmCounter = 0;
+    }
   }
 
   if(sensorIn && sensorOut) {
@@ -164,52 +160,57 @@ void realLoop() {
     averageData = ((averageData * averageCount) + lastData) / (averageCount + 1);
     ++averageCount;
 
-    sensorIn = 0;
-    sensorOut = 0;
+    clearSensors();
 
-    cleanCounter1();
+    Serial.print("lst: ");
+    Serial.println(lastData);
+    Serial.print("avg: ");
+    Serial.println(averageData);
   }
 
-  if(digitalRead(button)) {
-    if(outData != averageData || outDataType != 0) {
-      Serial.print("avg: ");
-      Serial.println(averageData);
-      outData = averageData;
-      outDataType = 0;
+  if(sensorError) {
+    if(showErrorCounter < showErrorCount) {
+      ++showErrorCounter;
     }
-    outvalue(averageData);
+    showValue(-1);
   } else {
-    if(outData != lastData || outDataType != 1) {
-      Serial.print("lst: ");
-      Serial.println(lastData);
-      outData = lastData;
-      outDataType = 1;
+    if(loopsAfterMeasuringCounter < errorCanBeAfterCount) {
+      ++loopsAfterMeasuringCounter;
     }
-    outvalue(lastData);
+    if(digitalRead(button)) {
+      showValue(averageData);
+    } else {
+      showValue(lastData);
+    }
   }
 
-  delay(3);
+  delay(loopDelay);
 }
 
-void sensorLoop() {
-  outreset();
+void testSensorsLoop() {
+  showReset();
   if(sensorIn) {
-    outdigit(1, 0, 1);
+    Serial.println("sensorIn");
+    showDigit(1, 0, 1);
   }
 
   if(sensorOut) {
-    outdigit(1, 0, 2);
+    Serial.println("sensorOut");
+    showDigit(1, 0, 2);
   }
 
   if(digitalRead(button)) {
-    outdigit(1, 0, 3);
+    Serial.println("button");
+    showDigit(1, 0, 3);
   }
+
+  clearSensors();
 
   delay(200);
 }
 
-void testLoop() {
-  outreset();
+void testShowLoop() {
+  showReset();
 
   /*for(uchar i = 0; i < segmentsCount; ++i) {*/
     /*digitalWrite(segments[i], LOW);*/
@@ -219,7 +220,7 @@ void testLoop() {
     digitalWrite(digits[i], HIGH);
   }
 
-  /*outdigit(8, 1, 4);*/
+  /*showDigit(8, 1, 4);*/
 
   /*delay(1000);*/
 
@@ -230,7 +231,7 @@ void testLoop() {
   }
 }
 
-void outreset() {
+void showReset() {
   for(uchar i = 0; i < segmentsCount; ++i) {
     digitalWrite(segments[i], HIGH);
   }
@@ -240,13 +241,16 @@ void outreset() {
   }
 }
 
-void outdigit(uchar value, uchar dot, uchar digit) {
+void showDigit(char value, uchar dot, uchar digit) {
   digitalWrite(digits[digit-1], HIGH);
 
   if(dot)
     digitalWrite(segmentDP, LOW);
 
   switch(value) {
+    case -1:
+      digitalWrite(segmentG, LOW);
+      break;
     case 0:
       digitalWrite(segmentA, LOW);
       digitalWrite(segmentB, LOW);
@@ -320,16 +324,20 @@ void outdigit(uchar value, uchar dot, uchar digit) {
 }
 
 uchar counter = 1;
-void outvalue(double value) {
-  uchar dot = (counter == 3) ? 1 : 0;
+void showValue(double value) {
+  if(value < 0) {
+    showDigit(-1, 0, counter);
+  } else {
+    uchar dot = (counter == 3) ? 1 : 0;
 
-  uint val = (uint)(value*10);
-  uchar figure = 0;
-  for(uchar i = 1; i <= (5 - counter); ++i) {
-    figure = val % 10;
-    val = val / 10;
+    uint val = (uint)(value*10);
+    uchar figure = 0;
+    for(uchar i = 1; i <= (5 - counter); ++i) {
+      figure = val % 10;
+      val = val / 10;
+    }
+    showDigit(figure, dot, counter);
   }
 
-  outdigit(figure, dot, counter);
   counter = 1 + counter % 4;
 }
