@@ -79,6 +79,23 @@ void sensorOutInterrupt() {
   }
 }
 
+uchar isInterruptsAttached = 0;
+void attachInterrupts() {
+  if(!isInterruptsAttached) {
+    attachInterrupt(0, sensorInInterrupt, FALLING); // pin 2
+    attachInterrupt(1, sensorOutInterrupt, FALLING); // pin 3
+    isInterruptsAttached = 1;
+  }
+}
+
+void detachInterrupts() {
+  if(isInterruptsAttached) {
+    detachInterrupt(0);
+    detachInterrupt(1);
+    isInterruptsAttached = 0;
+  }
+}
+
 void clearSensors() {
   sensorIn = 0;
   sensorOut = 0;
@@ -106,12 +123,9 @@ void setup() {
     pinMode(digits[i], OUTPUT);
   }
 
-  // pin 2
-  attachInterrupt(0, sensorInInterrupt, FALLING);
-  // pin 3
-  attachInterrupt(1, sensorOutInterrupt, FALLING);
-
   pinMode(button, INPUT);
+
+  attachInterrupts();
 
   showReset();
 
@@ -126,8 +140,9 @@ void loop() {
 
 // count = loop counts = count * loopDelay (ms)
 const uchar loopDelay = 3;
+uchar wasMeasuring = 0;
 uint loopsAfterMeasuringCounter = 0;
-const uint errorCanBeAfterCount = 300;
+const uint pauseAfterMeasuringCount = 300;
 uchar sensorError = 0;
 uchar sensorErrorConfirmCounter = 0;
 const uchar sensorErrorConfirmCount = 2;
@@ -138,20 +153,31 @@ void realLoop() {
   showReset();
 
   if(sensorError) {
-    clearSensors();
     if(showErrorCounter >= showErrorCount) {
-      showErrorCounter = 0;
       sensorError = 0;
+      showErrorCounter = 0;
     }
   }
 
   if(sensorIn ^ sensorOut) {
     ++sensorErrorConfirmCounter;
-    uchar error = sensorErrorConfirmCounter / sensorErrorConfirmCount;
-    if((loopsAfterMeasuringCounter >= errorCanBeAfterCount) && error) {
+    sensorError = sensorErrorConfirmCounter / sensorErrorConfirmCount;
+    if(sensorError) {
       Serial.println("Error");
-      sensorError = 1;
+
       sensorErrorConfirmCounter = 0;
+      loopsAfterMeasuringCounter = 0;
+      showErrorCounter = 1;
+
+      clearSensors();
+      detachInterrupts();
+    }
+  }
+
+  if(wasMeasuring) {
+    if(loopsAfterMeasuringCounter < pauseAfterMeasuringCount) {
+      wasMeasuring = 0;
+      loopsAfterMeasuringCounter = 0;
     }
   }
 
@@ -160,12 +186,20 @@ void realLoop() {
     averageData = ((averageData * averageCount) + lastData) / (averageCount + 1);
     ++averageCount;
 
-    clearSensors();
-
     Serial.print("lst: ");
     Serial.println(lastData);
     Serial.print("avg: ");
     Serial.println(averageData);
+
+    wasMeasuring = 1;
+    loopsAfterMeasuringCounter = 1;
+
+    clearSensors();
+    detachInterrupts();
+  }
+
+  if(!sensorError && !wasMeasuring) {
+    attachInterrupts();
   }
 
   if(sensorError) {
@@ -174,8 +208,10 @@ void realLoop() {
     }
     showValue(-1);
   } else {
-    if(loopsAfterMeasuringCounter < errorCanBeAfterCount) {
-      ++loopsAfterMeasuringCounter;
+    if(wasMeasuring) {
+      if(loopsAfterMeasuringCounter < pauseAfterMeasuringCount) {
+        ++loopsAfterMeasuringCounter;
+      }
     }
     if(digitalRead(button)) {
       showValue(averageData);
