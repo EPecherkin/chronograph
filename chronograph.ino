@@ -175,7 +175,7 @@ void realLoop() {
   }
 
   if(wasMeasuring) {
-    if(loopsAfterMeasuringCounter < pauseAfterMeasuringCount) {
+    if(loopsAfterMeasuringCounter >= pauseAfterMeasuringCount) {
       wasMeasuring = 0;
       loopsAfterMeasuringCounter = 0;
     }
