@@ -104,7 +104,7 @@ void clearSensors() {
 }
 
 void setup() {
-  Serial.begin(9600);
+  //Serial.begin(9600);
 
   // Global disable interrupts
   cli();
@@ -129,7 +129,7 @@ void setup() {
 
   showReset();
 
-  Serial.println("Ready!");
+  //Serial.println("Ready!");
 }
 
 void loop() {
@@ -163,7 +163,7 @@ void realLoop() {
     ++sensorErrorConfirmCounter;
     sensorError = (sensorErrorConfirmCounter >= sensorErrorConfirmCount);
     if(sensorError) {
-      Serial.println("Error");
+      //Serial.println("Error");
 
       sensorErrorConfirmCounter = 0;
       loopsAfterMeasuringCounter = 0;
@@ -184,10 +184,10 @@ void realLoop() {
     averageData = ((averageData * averageCount) + lastData) / (averageCount + 1);
     ++averageCount;
 
-    Serial.print("lst: ");
-    Serial.print(lastData, 1);
-    Serial.print("; avg: ");
-    Serial.println(averageData, 1);
+    //Serial.print("lst: ");
+    //Serial.print(lastData, 1);
+    //Serial.print("; avg: ");
+    //Serial.println(averageData, 1);
 
     wasMeasuring = 1;
     loopsAfterMeasuringCounter = 0;
