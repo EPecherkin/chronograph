@@ -156,63 +156,51 @@ void realLoop() {
     if(showErrorCounter >= showErrorCount) {
       sensorError = 0;
       showErrorCounter = 0;
+    } else {
+      ++showErrorCounter;
     }
-  }
-
-  if(sensorIn ^ sensorOut) {
+  } else if(sensorIn ^ sensorOut) {
     ++sensorErrorConfirmCounter;
-    sensorError = sensorErrorConfirmCounter / sensorErrorConfirmCount;
+    sensorError = (sensorErrorConfirmCounter >= sensorErrorConfirmCount);
     if(sensorError) {
       Serial.println("Error");
 
       sensorErrorConfirmCounter = 0;
       loopsAfterMeasuringCounter = 0;
-      showErrorCounter = 1;
+      showErrorCounter = 0;
 
-      clearSensors();
       detachInterrupts();
+      clearSensors();
     }
-  }
-
-  if(wasMeasuring) {
+  } else if(wasMeasuring) {
     if(loopsAfterMeasuringCounter >= pauseAfterMeasuringCount) {
       wasMeasuring = 0;
       loopsAfterMeasuringCounter = 0;
+    } else {
+      ++loopsAfterMeasuringCounter;
     }
-  }
-
-  if(sensorIn && sensorOut) {
-    lastData = length * 16000000.0/ TCNT1;
+  } else if(sensorIn && sensorOut) {
+    lastData = length * 16000000.0 / TCNT1;
     averageData = ((averageData * averageCount) + lastData) / (averageCount + 1);
     ++averageCount;
 
     Serial.print("lst: ");
-    Serial.println(lastData);
-    Serial.print("avg: ");
-    Serial.println(averageData);
+    Serial.print(lastData, 1);
+    Serial.print("; avg: ");
+    Serial.println(averageData, 1);
 
     wasMeasuring = 1;
-    loopsAfterMeasuringCounter = 1;
+    loopsAfterMeasuringCounter = 0;
 
-    clearSensors();
     detachInterrupts();
-  }
-
-  if(!sensorError && !wasMeasuring) {
+    clearSensors();
+  } else if(!sensorError && !wasMeasuring) {
     attachInterrupts();
   }
 
   if(sensorError) {
-    if(showErrorCounter < showErrorCount) {
-      ++showErrorCounter;
-    }
     showValue(-1);
   } else {
-    if(wasMeasuring) {
-      if(loopsAfterMeasuringCounter < pauseAfterMeasuringCount) {
-        ++loopsAfterMeasuringCounter;
-      }
-    }
     if(digitalRead(button)) {
       showValue(averageData);
     } else {
